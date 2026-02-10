@@ -1,9 +1,31 @@
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClientProjects } from "@/hooks/useClientProjects";
+import { useJiraIssues } from "@/hooks/useJiraIssues";
+import { useTempoWorklogs } from "@/hooks/useTempoWorklogs";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogOut } from "lucide-react";
+import ProjectSelector from "@/components/dashboard/ProjectSelector";
+import GanttChart from "@/components/dashboard/GanttChart";
+import TimeTrackingTable from "@/components/dashboard/TimeTrackingTable";
+import ProjectMetrics from "@/components/dashboard/ProjectMetrics";
 
 const ClientDashboard = () => {
   const { user, signOut } = useAuth();
+  const { data: projects = [], isLoading: projectsLoading } = useClientProjects();
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  const activeId = selectedProjectId ?? (projects.length > 0 ? projects[0].id : null);
+
+  const { data: issues = [], isLoading: issuesLoading } = useJiraIssues(activeId);
+  const { data: worklogs = [], isLoading: worklogsLoading } = useTempoWorklogs(activeId);
+
+  // Auto-select first project
+  if (!selectedProjectId && projects.length > 0) {
+    // Using a ref-like approach to avoid re-render loop
+    setTimeout(() => setSelectedProjectId(projects[0].id), 0);
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -22,15 +44,41 @@ const ClientDashboard = () => {
           </Button>
         </div>
       </header>
-      <main className="p-8">
-        <div className="rounded-xl border border-border bg-card p-8 text-center">
-          <h2 className="text-lg font-heading font-semibold text-foreground mb-2">
-            Client portal ready
-          </h2>
-          <p className="text-muted-foreground">
-            Project selector, Gantt chart, and time tracking will be built in Phase 2.
-          </p>
+
+      <main className="p-8 max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <ProjectSelector
+            projects={projects}
+            selectedId={activeId}
+            onSelect={setSelectedProjectId}
+            isLoading={projectsLoading}
+          />
         </div>
+
+        {activeId && (
+          <>
+            <ProjectMetrics
+              issues={issues}
+              worklogs={worklogs}
+              isLoading={issuesLoading || worklogsLoading}
+            />
+
+            <Tabs defaultValue="gantt" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="gantt">Project Plan</TabsTrigger>
+                <TabsTrigger value="time">Time Tracking</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="gantt">
+                <GanttChart issues={issues} isLoading={issuesLoading} />
+              </TabsContent>
+
+              <TabsContent value="time">
+                <TimeTrackingTable worklogs={worklogs} isLoading={worklogsLoading} />
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
       </main>
     </div>
   );
