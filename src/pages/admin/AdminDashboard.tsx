@@ -1,36 +1,21 @@
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { Routes, Route } from "react-router-dom";
+import AdminSidebar from "@/components/admin/AdminSidebar";
+import AdminOverview from "@/pages/admin/AdminOverview";
+import ProjectManagement from "@/pages/admin/ProjectManagement";
+import ClientManagement from "@/pages/admin/ClientManagement";
+import JiraSettings from "@/pages/admin/JiraSettings";
 
 const AdminDashboard = () => {
-  const { user, signOut } = useAuth();
-
   return (
-    <div className="min-h-screen bg-background">
-      <header className="h-16 border-b border-border bg-card flex items-center justify-between px-8">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-heading font-bold text-sm">T</span>
-          </div>
-          <h1 className="text-xl font-heading font-bold text-foreground">Admin Dashboard</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground">{user?.email}</span>
-          <Button variant="ghost" size="sm" onClick={signOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
-        </div>
-      </header>
-      <main className="p-8">
-        <div className="rounded-xl border border-border bg-card p-8 text-center">
-          <h2 className="text-lg font-heading font-semibold text-foreground mb-2">
-            Admin area ready
-          </h2>
-          <p className="text-muted-foreground">
-            Project management, client assignments, and Jira settings will be built in Phase 3.
-          </p>
-        </div>
+    <div className="flex min-h-screen bg-background">
+      <AdminSidebar />
+      <main className="flex-1 overflow-auto">
+        <Routes>
+          <Route index element={<AdminOverview />} />
+          <Route path="projects" element={<ProjectManagement />} />
+          <Route path="clients" element={<ClientManagement />} />
+          <Route path="jira-settings" element={<JiraSettings />} />
+        </Routes>
       </main>
     </div>
   );
