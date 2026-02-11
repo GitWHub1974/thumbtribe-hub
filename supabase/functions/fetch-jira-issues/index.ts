@@ -1,24 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// CORS: allow Supabase-hosted frontend and localhost for development
-const ALLOWED_ORIGINS = [
-  Deno.env.get("SITE_URL") || "",
-  "http://localhost:5173",
-  "http://localhost:3000",
-].filter(Boolean);
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") || "";
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0] || "";
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  };
-}
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
+  
 
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
