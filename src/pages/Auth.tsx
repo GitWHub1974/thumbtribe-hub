@@ -11,10 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 const Auth = () => {
   const { session, role, loading } = useAuth();
   const { toast } = useToast();
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   if (loading) {
@@ -34,25 +32,8 @@ const Auth = () => {
     setSubmitting(true);
 
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: fullName },
-            emailRedirectTo: window.location.origin,
-          },
-        });
-        if (error) throw error;
-        toast({
-          title: "Check your email",
-          description: "We've sent you a verification link. Please verify your email before signing in.",
-        });
-        setIsLogin(true);
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
     } catch (err: any) {
       toast({
         title: "Error",
@@ -71,27 +52,11 @@ const Auth = () => {
           <div className="mx-auto w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-4">
             <span className="text-primary-foreground font-heading font-bold text-xl">T</span>
           </div>
-          <CardTitle className="font-heading text-2xl">
-            {isLogin ? "Welcome back" : "Create account"}
-          </CardTitle>
-          <CardDescription>
-            {isLogin ? "Sign in to your Thumbtribe account" : "Sign up for a new account"}
-          </CardDescription>
+          <CardTitle className="font-heading text-2xl">Welcome back</CardTitle>
+          <CardDescription>Sign in to your Thumbtribe account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input
-                  id="fullName"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Your full name"
-                  required={!isLogin}
-                />
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -116,19 +81,9 @@ const Auth = () => {
               />
             </div>
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Please wait..." : isLogin ? "Sign In" : "Sign Up"}
+              {submitting ? "Please wait..." : "Sign In"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline font-medium"
-            >
-              {isLogin ? "Sign up" : "Sign in"}
-            </button>
-          </div>
         </CardContent>
       </Card>
     </div>
