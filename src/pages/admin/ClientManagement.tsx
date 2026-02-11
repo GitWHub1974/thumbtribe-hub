@@ -29,6 +29,7 @@ const ClientManagement = () => {
   const [roleUserId, setRoleUserId] = useState("");
   const [roleValue, setRoleValue] = useState<"admin" | "client">("client");
   const [unassignTarget, setUnassignTarget] = useState<{ id: string; clientName: string; projectName: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; email: string } | null>(null);
 
   // Invite user state
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -153,6 +154,23 @@ const ClientManagement = () => {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke("delete-user", {
+        body: { user_id: userId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-profiles"] });
+      qc.invalidateQueries({ queryKey: ["admin-all-roles"] });
+      qc.invalidateQueries({ queryKey: ["admin-assignments"] });
+      toast({ title: "User deleted successfully" });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const getRoleForUser = (userId: string) => roles?.find((r) => r.user_id === userId)?.role;
 
   const toggleProjectId = (pid: string) => {
@@ -262,7 +280,7 @@ const ClientManagement = () => {
                           {getRoleForUser(p.id) || "none"}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="flex gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -273,6 +291,14 @@ const ClientManagement = () => {
                           }}
                         >
                           Set Role
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteTarget({ id: p.id, name: p.full_name || "Unknown", email: p.email })}
+                          title="Delete user"
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -412,6 +438,30 @@ const ClientManagement = () => {
               }}
             >
               Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete <strong>{deleteTarget?.name}</strong> ({deleteTarget?.email})? This will remove their account, role, and all project assignments. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteTarget) deleteUserMutation.mutate(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+            >
+              Delete User
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
