@@ -25,7 +25,7 @@ interface TimeTrackingTableProps {
 }
 
 type GroupBy = "none" | "epic" | "assignee";
-type SortField = "issueKey" | "author" | "timeSpentSeconds" | "startDate";
+type SortField = "issueKey" | "assignee" | "timeSpentSeconds" | "startDate";
 type SortDir = "asc" | "desc";
 
 const PAGE_SIZE = 25;
@@ -65,7 +65,7 @@ const TimeTrackingTable = ({ worklogs, isLoading }: TimeTrackingTableProps) => {
         (w) =>
           (w.issueKey ?? "").toLowerCase().includes(q) ||
           (w.issueSummary ?? "").toLowerCase().includes(q) ||
-          (w.author ?? "").toLowerCase().includes(q)
+          (w.assignee ?? "").toLowerCase().includes(q)
       );
     }
 
@@ -88,8 +88,8 @@ const TimeTrackingTable = ({ worklogs, isLoading }: TimeTrackingTableProps) => {
         case "issueKey":
           cmp = (a.issueKey ?? "").localeCompare(b.issueKey ?? "");
           break;
-        case "author":
-          cmp = (a.author ?? "").localeCompare(b.author ?? "");
+        case "assignee":
+          cmp = (a.assignee ?? "").localeCompare(b.assignee ?? "");
           break;
         case "timeSpentSeconds":
           cmp = (a.timeSpentSeconds ?? 0) - (b.timeSpentSeconds ?? 0);
@@ -111,7 +111,7 @@ const TimeTrackingTable = ({ worklogs, isLoading }: TimeTrackingTableProps) => {
     for (const w of sorted) {
       const key =
         groupBy === "assignee"
-          ? w.author || "Unassigned"
+          ? w.assignee || "Unassigned"
           : w.issueKey.split("-")[0] || "Other";
       if (!map[key]) map[key] = [];
       map[key].push(w);
@@ -131,12 +131,12 @@ const TimeTrackingTable = ({ worklogs, isLoading }: TimeTrackingTableProps) => {
   const grandTotalSeconds = filtered.reduce((s, w) => s + w.timeSpentSeconds, 0);
 
   const exportCSV = () => {
-    const header = "Issue Key,Issue Summary,Author,Hours,Date,Description\n";
+    const header = "Issue Key,Issue Summary,Assignee,Hours,Date,Description\n";
     const rows = filtered.map((w) =>
       [
         w.issueKey,
         `"${w.issueSummary.replace(/"/g, '""')}"`,
-        w.author,
+        w.assignee,
         (w.timeSpentSeconds / 3600).toFixed(2),
         w.startDate,
         `"${(w.description || "").replace(/"/g, '""')}"`,
@@ -183,8 +183,8 @@ const TimeTrackingTable = ({ worklogs, isLoading }: TimeTrackingTableProps) => {
     <div className="space-y-4">
       {/* Controls row */}
       <div className="flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="Search issue key, summary, or author..."
+          <Input
+          placeholder="Search issue key, summary, or assignee..."
           value={searchQuery}
           onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
           className="w-64 h-8 text-xs"
@@ -251,7 +251,7 @@ const TimeTrackingTable = ({ worklogs, isLoading }: TimeTrackingTableProps) => {
                       <SortButton field="issueKey">Issue</SortButton>
                     </TableHead>
                     <TableHead className="text-xs">
-                      <SortButton field="author">Author</SortButton>
+                      <SortButton field="assignee">Assignee</SortButton>
                     </TableHead>
                     <TableHead className="text-xs text-right">
                       <SortButton field="timeSpentSeconds">Hours</SortButton>
@@ -269,7 +269,7 @@ const TimeTrackingTable = ({ worklogs, isLoading }: TimeTrackingTableProps) => {
                         <span className="font-mono text-muted-foreground mr-1.5">{w.issueKey}</span>
                         <span className="text-foreground">{w.issueSummary}</span>
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{w.author}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{w.assignee}</TableCell>
                       <TableCell className="text-xs text-right font-mono">{formatHours(w.timeSpentSeconds)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{w.startDate}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
