@@ -157,13 +157,13 @@ Deno.serve(async (req) => {
 
     // Resolve issue IDs to keys via Jira
     const uniqueIssueIds = [...new Set(allWorklogs.map((w: any) => w.issue?.id).filter(Boolean))];
-    const issueMap: Record<string, { key: string; summary: string }> = {};
+    const issueMap: Record<string, { key: string; summary: string; assignee: string }> = {};
 
     // Batch fetch issue details from Jira (up to 100 at a time via JQL)
     for (let i = 0; i < uniqueIssueIds.length; i += 100) {
       const batch = uniqueIssueIds.slice(i, i + 100);
       const jql = `id in (${batch.join(",")})`;
-      const jiraSearchUrl = `${jiraBaseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=summary&maxResults=100`;
+      const jiraSearchUrl = `${jiraBaseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=summary,assignee&maxResults=100`;
       const jiraSearchRes = await fetch(jiraSearchUrl, {
         headers: {
           Authorization: `Basic ${jiraAuthString}`,
@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
       if (jiraSearchRes.ok) {
         const searchData = await jiraSearchRes.json();
         for (const issue of (searchData.issues || [])) {
-          issueMap[String(issue.id)] = { key: issue.key, summary: issue.fields?.summary || "" };
+          issueMap[String(issue.id)] = { key: issue.key, summary: issue.fields?.summary || "", assignee: issue.fields?.assignee?.displayName || "Unassigned" };
         }
       }
     }
@@ -185,6 +185,7 @@ Deno.serve(async (req) => {
       return {
         issueKey: issueInfo?.key || w.issue?.key || "UNKNOWN",
         issueSummary: issueInfo?.summary || "",
+        assignee: issueInfo?.assignee || "Unassigned",
         author: w.author?.displayName || "Unknown",
         timeSpentSeconds: w.timeSpentSeconds || 0,
         startDate: w.startDate || "",

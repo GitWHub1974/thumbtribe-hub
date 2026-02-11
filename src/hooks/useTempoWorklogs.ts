@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface TempoWorklog {
   issueKey: string;
   issueSummary: string;
+  assignee: string;
   author: string;
   timeSpentSeconds: number;
   startDate: string;
