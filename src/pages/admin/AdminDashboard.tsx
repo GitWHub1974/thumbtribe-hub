@@ -4,6 +4,7 @@ import AdminOverview from "@/pages/admin/AdminOverview";
 import ProjectManagement from "@/pages/admin/ProjectManagement";
 import ClientManagement from "@/pages/admin/ClientManagement";
 import JiraSettings from "@/pages/admin/JiraSettings";
+import PreviewClientDashboard from "@/pages/admin/PreviewClientDashboard";
 
 const AdminDashboard = () => {
   return (
@@ -15,6 +16,7 @@ const AdminDashboard = () => {
           <Route path="projects" element={<ProjectManagement />} />
           <Route path="clients" element={<ClientManagement />} />
           <Route path="jira-settings" element={<JiraSettings />} />
+          <Route path="preview/:projectId" element={<PreviewClientDashboard />} />
         </Routes>
       </main>
     </div>

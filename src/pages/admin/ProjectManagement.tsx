@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,13 +11,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Project = Tables<"projects">;
 
 const ProjectManagement = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
@@ -156,6 +158,9 @@ const ProjectManagement = () => {
                     <TableCell className="text-muted-foreground text-sm max-w-xs truncate">{p.description || "—"}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/preview/${p.id}`)} title="Preview as client">
+                          <Eye className="w-4 h-4 text-muted-foreground" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
                           <Pencil className="w-4 h-4" />
                         </Button>

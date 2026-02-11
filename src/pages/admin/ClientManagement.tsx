@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,13 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Trash2, Link } from "lucide-react";
+import { UserPlus, Trash2, Link, Eye } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Profile = Tables<"profiles">;
 
 const ClientManagement = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState("");
@@ -347,6 +349,9 @@ const ClientManagement = () => {
                       <TableCell>{a.profiles?.full_name || a.profiles?.email || "—"}</TableCell>
                       <TableCell>{a.projects?.name || "—"}</TableCell>
                       <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/preview/${a.project_id}`)} title="Preview as client">
+                          <Eye className="w-4 h-4 text-muted-foreground" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => setUnassignTarget({
                           id: a.id,
                           clientName: a.profiles?.full_name || a.profiles?.email || "Unknown",
