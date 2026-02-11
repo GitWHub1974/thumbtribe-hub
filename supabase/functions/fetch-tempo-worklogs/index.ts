@@ -155,15 +155,42 @@ Deno.serve(async (req) => {
       offset += limit;
     }
 
+    // Resolve issue IDs to keys via Jira
+    const uniqueIssueIds = [...new Set(allWorklogs.map((w: any) => w.issue?.id).filter(Boolean))];
+    const issueMap: Record<string, { key: string; summary: string }> = {};
+
+    // Batch fetch issue details from Jira (up to 100 at a time via JQL)
+    for (let i = 0; i < uniqueIssueIds.length; i += 100) {
+      const batch = uniqueIssueIds.slice(i, i + 100);
+      const jql = `id in (${batch.join(",")})`;
+      const jiraSearchUrl = `${jiraBaseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=summary&maxResults=100`;
+      const jiraSearchRes = await fetch(jiraSearchUrl, {
+        headers: {
+          Authorization: `Basic ${jiraAuthString}`,
+          Accept: "application/json",
+        },
+      });
+      if (jiraSearchRes.ok) {
+        const searchData = await jiraSearchRes.json();
+        for (const issue of (searchData.issues || [])) {
+          issueMap[String(issue.id)] = { key: issue.key, summary: issue.fields?.summary || "" };
+        }
+      }
+    }
+
     // Transform
-    const worklogs = allWorklogs.map((w: any) => ({
-      issueKey: w.issue?.key || "UNKNOWN",
-      issueSummary: w.issue?.summary || "",
-      author: w.author?.displayName || "Unknown",
-      timeSpentSeconds: w.timeSpentSeconds || 0,
-      startDate: w.startDate || "",
-      description: w.description || null,
-    }));
+    const worklogs = allWorklogs.map((w: any) => {
+      const issueId = String(w.issue?.id || "");
+      const issueInfo = issueMap[issueId];
+      return {
+        issueKey: issueInfo?.key || w.issue?.key || "UNKNOWN",
+        issueSummary: issueInfo?.summary || "",
+        author: w.author?.displayName || "Unknown",
+        timeSpentSeconds: w.timeSpentSeconds || 0,
+        startDate: w.startDate || "",
+        description: w.description || null,
+      };
+    });
 
     return new Response(JSON.stringify({ worklogs }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

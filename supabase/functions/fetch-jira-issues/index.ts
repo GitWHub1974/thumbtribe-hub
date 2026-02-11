@@ -98,16 +98,35 @@ Deno.serve(async (req) => {
     const authString = btoa(`${jira_api_email}:${jira_api_token}`);
     const baseUrl = jira_base_url.replace(/\/+$/, "");
 
+    // If start_date_field_id doesn't look like a custom field ID, resolve it
+    let startDateFieldId = start_date_field_id;
+    if (startDateFieldId && !startDateFieldId.startsWith("customfield_")) {
+      // Try to find the custom field by name
+      const fieldsRes = await fetch(`${baseUrl}/rest/api/3/field`, {
+        headers: { Authorization: `Basic ${authString}`, Accept: "application/json" },
+      });
+      if (fieldsRes.ok) {
+        const fields = await fieldsRes.json();
+        const match = fields.find((f: any) =>
+          f.name.toLowerCase() === startDateFieldId.toLowerCase() ||
+          f.id === startDateFieldId
+        );
+        if (match) {
+          startDateFieldId = match.id;
+        }
+      }
+    }
+
     // Fetch epics, stories, and tasks using new /search/jql endpoint
     const jql = `project = "${projectKey}" AND issuetype in (Epic, Story, Task, Sub-task) ORDER BY issuetype ASC, key ASC`;
-    const fields = `summary,status,issuetype,parent,duedate,${start_date_field_id},assignee`;
+    const requestFields = `summary,status,issuetype,parent,duedate,${startDateFieldId},assignee`;
 
     let allIssues: any[] = [];
     let startAt = 0;
     const maxResults = 100;
 
     while (true) {
-      const searchUrl = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=${encodeURIComponent(fields)}&startAt=${startAt}&maxResults=${maxResults}`;
+      const searchUrl = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=${encodeURIComponent(requestFields)}&startAt=${startAt}&maxResults=${maxResults}`;
 
       const jiraRes = await fetch(searchUrl, {
         headers: {
@@ -133,15 +152,23 @@ Deno.serve(async (req) => {
       startAt += maxResults;
     }
 
+    // Map Jira statusCategory keys to our expected values
+    const statusCategoryMap: Record<string, string> = {
+      "new": "todo",
+      "undefined": "todo",
+      "indeterminate": "in_progress",
+      "done": "done",
+    };
+
     // Transform to structured response
     const issues = allIssues.map((issue: any) => ({
       key: issue.key,
       summary: issue.fields.summary,
       status: issue.fields.status?.name || "Unknown",
-      statusCategory: issue.fields.status?.statusCategory?.key || "undefined",
+      statusCategory: statusCategoryMap[issue.fields.status?.statusCategory?.key || "undefined"] || "todo",
       issueType: issue.fields.issuetype?.name || "Unknown",
       parentKey: issue.fields.parent?.key || null,
-      startDate: issue.fields[start_date_field_id] || null,
+      startDate: issue.fields[startDateFieldId] || null,
       dueDate: issue.fields.duedate || null,
       assignee: issue.fields.assignee
         ? {

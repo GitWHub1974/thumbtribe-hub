@@ -63,17 +63,17 @@ const TimeTrackingTable = ({ worklogs, isLoading }: TimeTrackingTableProps) => {
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (w) =>
-          w.issueKey.toLowerCase().includes(q) ||
-          w.issueSummary.toLowerCase().includes(q) ||
-          w.author.toLowerCase().includes(q)
+          (w.issueKey ?? "").toLowerCase().includes(q) ||
+          (w.issueSummary ?? "").toLowerCase().includes(q) ||
+          (w.author ?? "").toLowerCase().includes(q)
       );
     }
 
     if (dateFrom) {
-      result = result.filter((w) => w.startDate >= dateFrom);
+      result = result.filter((w) => (w.startDate ?? "") >= dateFrom);
     }
     if (dateTo) {
-      result = result.filter((w) => w.startDate <= dateTo);
+      result = result.filter((w) => (w.startDate ?? "") <= dateTo);
     }
 
     return result;
@@ -86,16 +86,16 @@ const TimeTrackingTable = ({ worklogs, isLoading }: TimeTrackingTableProps) => {
       let cmp = 0;
       switch (sortField) {
         case "issueKey":
-          cmp = a.issueKey.localeCompare(b.issueKey);
+          cmp = (a.issueKey ?? "").localeCompare(b.issueKey ?? "");
           break;
         case "author":
-          cmp = a.author.localeCompare(b.author);
+          cmp = (a.author ?? "").localeCompare(b.author ?? "");
           break;
         case "timeSpentSeconds":
-          cmp = a.timeSpentSeconds - b.timeSpentSeconds;
+          cmp = (a.timeSpentSeconds ?? 0) - (b.timeSpentSeconds ?? 0);
           break;
         case "startDate":
-          cmp = a.startDate.localeCompare(b.startDate);
+          cmp = (a.startDate ?? "").localeCompare(b.startDate ?? "");
           break;
       }
       return sortDir === "asc" ? cmp : -cmp;
