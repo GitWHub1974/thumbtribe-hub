@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
 
     // Fetch epics, stories, and tasks using new /search/jql endpoint
     const jql = `project = "${projectKey}" AND issuetype in (Epic, Story, Task, Sub-task) ORDER BY issuetype ASC, key ASC`;
-    const requestFields = `summary,status,issuetype,parent,duedate,${startDateFieldId},assignee`;
+    const requestFields = `summary,status,issuetype,parent,duedate,${startDateFieldId},assignee,timeoriginalestimate`;
 
     let allIssues: any[] = [];
     let startAt = 0;
@@ -176,6 +176,7 @@ Deno.serve(async (req) => {
             emailAddress: issue.fields.assignee.emailAddress,
           }
         : null,
+      originalEstimateSeconds: issue.fields.timeoriginalestimate || 0,
     }));
 
     return new Response(JSON.stringify({ issues }), {
