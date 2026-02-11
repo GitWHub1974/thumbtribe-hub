@@ -11,6 +11,7 @@ export interface JiraIssue {
   startDate: string | null;
   dueDate: string | null;
   parentKey: string | null;
+  originalEstimateSeconds: number;
 }
 
 export const useJiraIssues = (projectId: string | null) => {

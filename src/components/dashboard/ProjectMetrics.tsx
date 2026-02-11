@@ -20,9 +20,12 @@ const ProjectMetrics = ({ issues, worklogs, isLoading }: ProjectMetricsProps) =>
     );
   }
 
-  const total = issues.length;
-  const done = issues.filter((i) => i.statusCategory === "done").length;
-  const completionPct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const totalLoggedSeconds = worklogs.reduce((s, w) => s + w.timeSpentSeconds, 0);
+  const totalLoggedHours = Math.round(totalLoggedSeconds / 3600);
+
+  const totalEstimateSeconds = issues.reduce((s, i) => s + (i.originalEstimateSeconds || 0), 0);
+  const totalEstimateHours = Math.round(totalEstimateSeconds / 3600);
+  const completionPct = totalEstimateHours > 0 ? Math.min(Math.round((totalLoggedHours / totalEstimateHours) * 100), 100) : 0;
 
   const totalSeconds = worklogs.reduce((s, w) => s + w.timeSpentSeconds, 0);
   const totalHours = Math.round(totalSeconds / 3600);
@@ -37,7 +40,7 @@ const ProjectMetrics = ({ issues, worklogs, isLoading }: ProjectMetricsProps) =>
           <div>
             <p className="text-sm text-muted-foreground">Completion</p>
             <p className="text-2xl font-heading font-bold text-foreground">{completionPct}%</p>
-            <p className="text-xs text-muted-foreground">{done} of {total} issues done</p>
+            <p className="text-xs text-muted-foreground">{totalLoggedHours}h of {totalEstimateHours}h estimated</p>
           </div>
         </CardContent>
       </Card>
