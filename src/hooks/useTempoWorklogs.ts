@@ -25,10 +25,12 @@ export const useTempoWorklogs = (
       const params = new URLSearchParams({ project_id: projectId! });
       if (from) params.set("from", from);
       if (to) params.set("to", to);
+      // Cache-buster to avoid stale CDN responses
+      params.set("_ts", Date.now().toString());
 
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-tempo-worklogs?${params}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { cache: "no-store", headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (!res.ok) {

@@ -22,8 +22,11 @@ export const useJiraIssues = (projectId: string | null) => {
       if (!token) throw new Error("Not authenticated");
 
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-jira-issues?project_id=${projectId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-jira-issues?project_id=${projectId}&_ts=${Date.now()}`,
+        {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
 
       if (!res.ok) {
