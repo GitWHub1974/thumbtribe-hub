@@ -37,40 +37,57 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     // Safety timeout to prevent infinite loading
     const timeout = setTimeout(() => {
-      setLoading(false);
-    }, 5000);
+      console.warn("Auth loading timeout reached, forcing loading=false");
+      if (mounted) setLoading(false);
+    }, 3000);
 
     // Set up listener BEFORE getSession
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
+        if (!mounted) return;
         clearTimeout(timeout);
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
-          const userRole = await fetchRole(newSession.user.id);
-          setRole(userRole);
+          try {
+            const userRole = await fetchRole(newSession.user.id);
+            if (mounted) setRole(userRole);
+          } catch (e) {
+            console.error("Failed to fetch role:", e);
+          }
         } else {
           setRole(null);
         }
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     );
 
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      if (!mounted) return;
       clearTimeout(timeout);
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        const userRole = await fetchRole(s.user.id);
-        setRole(userRole);
+        try {
+          const userRole = await fetchRole(s.user.id);
+          if (mounted) setRole(userRole);
+        } catch (e) {
+          console.error("Failed to fetch role:", e);
+        }
       }
-      setLoading(false);
+      if (mounted) setLoading(false);
+    }).catch((err) => {
+      console.error("getSession failed:", err);
+      if (mounted) setLoading(false);
     });
 
     return () => {
+      mounted = false;
       clearTimeout(timeout);
       subscription.unsubscribe();
     };
