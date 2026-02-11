@@ -60,8 +60,13 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Build redirect URL – the invite email link will land the user on /auth
+    const siteUrl = Deno.env.get("SITE_URL") || req.headers.get("origin") || "";
+    const redirectTo = siteUrl ? `${siteUrl}/auth` : undefined;
+
     const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
       data: { full_name: full_name || "" },
+      ...(redirectTo ? { redirectTo } : {}),
     });
 
     if (inviteError) {
