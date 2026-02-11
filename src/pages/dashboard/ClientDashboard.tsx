@@ -9,6 +9,7 @@ import { LogOut } from "lucide-react";
 import ProjectSelector from "@/components/dashboard/ProjectSelector";
 import GanttChart from "@/components/dashboard/GanttChart";
 import TimeTrackingTable from "@/components/dashboard/TimeTrackingTable";
+import MonthlyHoursTable from "@/components/dashboard/MonthlyHoursTable";
 import ProjectMetrics from "@/components/dashboard/ProjectMetrics";
 
 const ClientDashboard = () => {
@@ -67,6 +68,7 @@ const ClientDashboard = () => {
               <TabsList>
                 <TabsTrigger value="gantt">Project Plan</TabsTrigger>
                 <TabsTrigger value="time">Time Tracking</TabsTrigger>
+                <TabsTrigger value="monthly">Monthly Hours</TabsTrigger>
               </TabsList>
 
               <TabsContent value="gantt">
@@ -75,6 +77,10 @@ const ClientDashboard = () => {
 
               <TabsContent value="time">
                 <TimeTrackingTable worklogs={worklogs} isLoading={worklogsLoading} />
+              </TabsContent>
+
+              <TabsContent value="monthly">
+                <MonthlyHoursTable worklogs={worklogs} isLoading={worklogsLoading} />
               </TabsContent>
             </Tabs>
           </>
