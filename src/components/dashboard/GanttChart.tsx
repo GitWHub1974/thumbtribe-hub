@@ -259,70 +259,88 @@ const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
       </div>
 
       {/* Chart */}
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <div style={{ minWidth: `${280 + chartWidth}px` }}>
-          {/* Time headers */}
-          <div className="relative h-6 bg-muted border-b border-border" style={{ paddingLeft: "280px" }}>
-            {markers.map((m, i) => (
-              <span key={i} className="absolute text-[10px] text-muted-foreground font-heading top-1 whitespace-nowrap" style={{ left: `${280 + m.left}px` }}>
-                {m.label}
-              </span>
+      <div className="rounded-lg border border-border">
+        <div className="flex">
+          {/* Frozen left column */}
+          <div className="w-[280px] min-w-[280px] flex-shrink-0 border-r border-border bg-background z-10">
+            {/* Header spacer */}
+            <div className="h-6 bg-muted border-b border-border" />
+            {/* Scheduled rows */}
+            {rows.map((row) => (
+              <div key={row.key} className="flex items-center h-9 border-b border-border last:border-0 hover:bg-muted/30 transition-colors px-3 gap-1.5 text-xs truncate" style={{ paddingLeft: `${12 + row.depth * 16}px` }}>
+                <span className="text-muted-foreground">{typeIcons[row.issueType] || "•"}</span>
+                <span className="font-mono text-muted-foreground">{row.key}</span>
+                <span className="truncate text-foreground">{row.summary}</span>
+              </div>
             ))}
-          </div>
-
-          {/* Scheduled rows */}
-          {rows.map((row) => {
-            const barStyle = getBarStyle(row);
-            return (
-              <div key={row.key} className="flex items-center h-9 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                <div className="w-[280px] min-w-[280px] px-3 flex items-center gap-1.5 text-xs truncate border-r border-border" style={{ paddingLeft: `${12 + row.depth * 16}px` }}>
-                  <span className="text-muted-foreground">{typeIcons[row.issueType] || "•"}</span>
-                  <span className="font-mono text-muted-foreground">{row.key}</span>
-                  <span className="truncate text-foreground">{row.summary}</span>
+            {/* Unscheduled section */}
+            {unscheduledRows.length > 0 && (
+              <>
+                <div className="h-8 bg-muted/60 border-t border-b border-border flex items-center px-3">
+                  <span className="text-xs font-heading font-semibold text-muted-foreground">Unscheduled ({unscheduledRows.length})</span>
                 </div>
-                <div className="flex-1 relative h-full" style={{ width: `${chartWidth}px` }}>
-                  {barStyle && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className={`absolute top-1.5 h-5 rounded-sm ${statusColors[row.statusCategory]} opacity-85 hover:opacity-100 transition-opacity cursor-default`} style={barStyle} />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="font-heading font-semibold">{row.key}: {row.summary}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{row.statusCategory.replace("_", " ")}</p>
-                        {row.assignee && <p className="text-xs text-muted-foreground">Assignee: {row.assignee}</p>}
-                        {row.startDate && row.dueDate && (
-                          <p className="text-xs">{row.startDate.toLocaleDateString()} – {row.dueDate.toLocaleDateString()}</p>
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Unscheduled section */}
-          {unscheduledRows.length > 0 && (
-            <>
-              <div className="h-8 bg-muted/60 border-t border-b border-border flex items-center px-3">
-                <span className="text-xs font-heading font-semibold text-muted-foreground">Unscheduled ({unscheduledRows.length})</span>
-              </div>
-              {unscheduledRows.map((row) => (
-                <div key={row.key} className="flex items-center h-9 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                  <div className="w-[280px] min-w-[280px] px-3 flex items-center gap-1.5 text-xs truncate border-r border-border" style={{ paddingLeft: `${12 + row.depth * 16}px` }}>
+                {unscheduledRows.map((row) => (
+                  <div key={row.key} className="flex items-center h-9 border-b border-border last:border-0 hover:bg-muted/30 transition-colors px-3 gap-1.5 text-xs truncate" style={{ paddingLeft: `${12 + row.depth * 16}px` }}>
                     <span className="text-muted-foreground">{typeIcons[row.issueType] || "•"}</span>
                     <span className="font-mono text-muted-foreground">{row.key}</span>
                     <span className="truncate text-foreground">{row.summary}</span>
                   </div>
-                  <div className="flex-1 relative h-full flex items-center px-3">
-                    <span className="text-xs text-muted-foreground italic">
-                      {!row.startDate && !row.dueDate ? "No dates set" : !row.startDate ? "Missing start date" : "Missing due date"}
-                    </span>
+                ))}
+              </>
+            )}
+          </div>
+
+          {/* Scrollable Gantt area */}
+          <div className="flex-1 overflow-x-auto">
+            <div style={{ minWidth: `${chartWidth}px` }}>
+              {/* Time headers */}
+              <div className="relative h-6 bg-muted border-b border-border">
+                {markers.map((m, i) => (
+                  <span key={i} className="absolute text-[10px] text-muted-foreground font-heading top-1 whitespace-nowrap" style={{ left: `${m.left}px` }}>
+                    {m.label}
+                  </span>
+                ))}
+              </div>
+
+              {/* Scheduled rows */}
+              {rows.map((row) => {
+                const barStyle = getBarStyle(row);
+                return (
+                  <div key={row.key} className="relative h-9 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                    {barStyle && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={`absolute top-1.5 h-5 rounded-sm ${statusColors[row.statusCategory]} opacity-85 hover:opacity-100 transition-opacity cursor-default`} style={barStyle} />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="font-heading font-semibold">{row.key}: {row.summary}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{row.statusCategory.replace("_", " ")}</p>
+                          {row.assignee && <p className="text-xs text-muted-foreground">Assignee: {row.assignee}</p>}
+                          {row.startDate && row.dueDate && (
+                            <p className="text-xs">{row.startDate.toLocaleDateString()} – {row.dueDate.toLocaleDateString()}</p>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
-                </div>
-              ))}
-            </>
-          )}
+                );
+              })}
+
+              {/* Unscheduled section */}
+              {unscheduledRows.length > 0 && (
+                <>
+                  <div className="h-8 bg-muted/60 border-t border-b border-border" />
+                  {unscheduledRows.map((row) => (
+                    <div key={row.key} className="relative h-9 border-b border-border last:border-0 hover:bg-muted/30 transition-colors flex items-center px-3">
+                      <span className="text-xs text-muted-foreground italic">
+                        {!row.startDate && !row.dueDate ? "No dates set" : !row.startDate ? "Missing start date" : "Missing due date"}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
