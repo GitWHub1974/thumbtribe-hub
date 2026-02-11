@@ -130,7 +130,8 @@ const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
       if (!usedTasks.has(task.key)) buildRows.push(toRow(task, 0));
     }
 
-    const scheduled = buildRows.filter((r) => r.startDate && r.dueDate);
+    const scheduled = buildRows.filter((r) => r.startDate && r.dueDate)
+      .sort((a, b) => a.startDate!.getTime() - b.startDate!.getTime());
     const unscheduled = buildRows.filter((r) => !r.startDate || !r.dueDate);
 
     const allDates = scheduled.flatMap((r) => [r.startDate, r.dueDate]).filter(Boolean) as Date[];
