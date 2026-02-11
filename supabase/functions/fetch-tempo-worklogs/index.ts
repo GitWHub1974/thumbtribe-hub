@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
 
     const { tempo_api_token, jira_base_url, jira_api_email, jira_api_token } = creds;
 
-    // First get Jira project ID from key
+    // Get numeric Jira project ID from key
     const jiraAuthString = btoa(`${jira_api_email}:${jira_api_token}`);
     const jiraBaseUrl = jira_base_url.replace(/\/+$/, "");
 
@@ -119,16 +119,16 @@ Deno.serve(async (req) => {
     }
 
     const jiraProject = await projectRes.json();
-    const jiraProjectKey = jiraProject.key;
+    const jiraProjectId = jiraProject.id; // numeric project ID for Tempo v4
 
-    // Fetch worklogs from Tempo API v4
+    // Fetch worklogs from Tempo API v4 using project query param
     const tempoBase = "https://api.tempo.io/4";
     let allWorklogs: any[] = [];
     let offset = 0;
     const limit = 1000;
 
     while (true) {
-      let tempoUrl = `${tempoBase}/worklogs/project/${jiraProjectKey}?limit=${limit}&offset=${offset}`;
+      let tempoUrl = `${tempoBase}/worklogs?projectId=${jiraProjectId}&limit=${limit}&offset=${offset}`;
       if (from) tempoUrl += `&from=${from}`;
       if (to) tempoUrl += `&to=${to}`;
 

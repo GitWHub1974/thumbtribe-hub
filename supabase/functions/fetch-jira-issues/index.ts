@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
     const authString = btoa(`${jira_api_email}:${jira_api_token}`);
     const baseUrl = jira_base_url.replace(/\/+$/, "");
 
-    // Fetch epics, stories, and tasks
+    // Fetch epics, stories, and tasks using new /search/jql endpoint
     const jql = `project = "${projectKey}" AND issuetype in (Epic, Story, Task, Sub-task) ORDER BY issuetype ASC, key ASC`;
     const fields = `summary,status,issuetype,parent,duedate,${start_date_field_id},assignee`;
 
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
     const maxResults = 100;
 
     while (true) {
-      const searchUrl = `${baseUrl}/rest/api/3/search?jql=${encodeURIComponent(jql)}&fields=${encodeURIComponent(fields)}&startAt=${startAt}&maxResults=${maxResults}`;
+      const searchUrl = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=${encodeURIComponent(fields)}&startAt=${startAt}&maxResults=${maxResults}`;
 
       const jiraRes = await fetch(searchUrl, {
         headers: {
@@ -125,9 +125,11 @@ Deno.serve(async (req) => {
       }
 
       const data = await jiraRes.json();
-      allIssues = allIssues.concat(data.issues || []);
+      const issues = data.issues || [];
+      allIssues = allIssues.concat(issues);
 
-      if (startAt + maxResults >= data.total) break;
+      // New API may not return 'total'; stop when fewer results than requested
+      if (issues.length < maxResults) break;
       startAt += maxResults;
     }
 
