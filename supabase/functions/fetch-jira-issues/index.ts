@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  
+  // v3 - uses /search/jql endpoint
 
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
