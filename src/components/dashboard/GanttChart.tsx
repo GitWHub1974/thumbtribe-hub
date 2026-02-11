@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { JiraIssue } from "@/hooks/useJiraIssues";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 interface GanttChartProps {
   issues: JiraIssue[];
@@ -12,10 +14,13 @@ interface GanttRow {
   summary: string;
   issueType: string;
   statusCategory: "todo" | "in_progress" | "done";
+  assignee: string | null;
   startDate: Date | null;
   dueDate: Date | null;
   depth: number;
 }
+
+type ZoomLevel = "day" | "week" | "month";
 
 const statusColors: Record<string, string> = {
   todo: "bg-muted-foreground/30",
@@ -31,13 +36,53 @@ const typeIcons: Record<string, string> = {
 };
 
 const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
-  const { rows, minDate, maxDate, totalDays } = useMemo(() => {
-    if (!issues.length) return { rows: [], minDate: new Date(), maxDate: new Date(), totalDays: 1 };
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterAssignee, setFilterAssignee] = useState<string>("all");
+  const [zoom, setZoom] = useState<ZoomLevel>("week");
 
-    // Build hierarchy: Epics > Stories > Tasks
-    const epics = issues.filter((i) => i.issueType === "Epic");
-    const stories = issues.filter((i) => i.issueType === "Story");
-    const tasks = issues.filter((i) => i.issueType !== "Epic" && i.issueType !== "Story");
+  // Extract unique values for filter dropdowns
+  const filterOptions = useMemo(() => {
+    const types = new Set<string>();
+    const statuses = new Set<string>();
+    const assignees = new Set<string>();
+    for (const i of issues) {
+      types.add(i.issueType);
+      statuses.add(i.statusCategory);
+      if (i.assignee) {
+        const name = typeof i.assignee === "string" ? i.assignee : (i.assignee as any)?.displayName || "Unknown";
+        assignees.add(name);
+      }
+    }
+    return {
+      types: Array.from(types).sort(),
+      statuses: Array.from(statuses).sort(),
+      assignees: Array.from(assignees).sort(),
+    };
+  }, [issues]);
+
+  // Apply filters
+  const filteredIssues = useMemo(() => {
+    return issues.filter((i) => {
+      if (filterType !== "all" && i.issueType !== filterType) return false;
+      if (filterStatus !== "all" && i.statusCategory !== filterStatus) return false;
+      if (filterAssignee !== "all") {
+        const name = i.assignee
+          ? typeof i.assignee === "string" ? i.assignee : (i.assignee as any)?.displayName || "Unknown"
+          : null;
+        if (name !== filterAssignee) return false;
+      }
+      return true;
+    });
+  }, [issues, filterType, filterStatus, filterAssignee]);
+
+  const { rows, unscheduledRows, minDate, maxDate, totalDays } = useMemo(() => {
+    if (!filteredIssues.length)
+      return { rows: [], unscheduledRows: [], minDate: new Date(), maxDate: new Date(), totalDays: 1 };
+
+    const epics = filteredIssues.filter((i) => i.issueType === "Epic");
+    const stories = filteredIssues.filter((i) => i.issueType === "Story");
+    const tasks = filteredIssues.filter((i) => i.issueType !== "Epic" && i.issueType !== "Story");
 
     const buildRows: GanttRow[] = [];
 
@@ -46,6 +91,9 @@ const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
       summary: issue.summary,
       issueType: issue.issueType,
       statusCategory: issue.statusCategory,
+      assignee: issue.assignee
+        ? typeof issue.assignee === "string" ? issue.assignee : (issue.assignee as any)?.displayName || null
+        : null,
       startDate: issue.startDate ? new Date(issue.startDate) : null,
       dueDate: issue.dueDate ? new Date(issue.dueDate) : null,
       depth,
@@ -63,9 +111,11 @@ const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
       }
     }
 
-    // Orphan stories/tasks
-    const usedStories = new Set(buildRows.filter(r => r.issueType === "Story").map(r => r.key));
-    const usedTasks = new Set(buildRows.filter(r => r.issueType !== "Epic" && r.issueType !== "Story").map(r => r.key));
+    // Orphans
+    const usedStories = new Set(buildRows.filter((r) => r.issueType === "Story").map((r) => r.key));
+    const usedTasks = new Set(
+      buildRows.filter((r) => r.issueType !== "Epic" && r.issueType !== "Story").map((r) => r.key)
+    );
     for (const story of stories) {
       if (!usedStories.has(story.key)) {
         buildRows.push(toRow(story, 0));
@@ -80,25 +130,33 @@ const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
       if (!usedTasks.has(task.key)) buildRows.push(toRow(task, 0));
     }
 
-    // Date range
-    const allDates = buildRows
-      .flatMap((r) => [r.startDate, r.dueDate])
-      .filter(Boolean) as Date[];
+    const scheduled = buildRows.filter((r) => r.startDate && r.dueDate);
+    const unscheduled = buildRows.filter((r) => !r.startDate || !r.dueDate);
+
+    const allDates = scheduled.flatMap((r) => [r.startDate, r.dueDate]).filter(Boolean) as Date[];
 
     if (allDates.length === 0) {
       const now = new Date();
-      return { rows: buildRows, minDate: now, maxDate: new Date(now.getTime() + 30 * 86400000), totalDays: 30 };
+      return {
+        rows: [],
+        unscheduledRows: unscheduled.length ? unscheduled : buildRows,
+        minDate: now,
+        maxDate: new Date(now.getTime() + 30 * 86400000),
+        totalDays: 30,
+      };
     }
 
     const min = new Date(Math.min(...allDates.map((d) => d.getTime())));
     const max = new Date(Math.max(...allDates.map((d) => d.getTime())));
-    // Add padding
     min.setDate(min.getDate() - 3);
     max.setDate(max.getDate() + 3);
     const days = Math.max(1, Math.ceil((max.getTime() - min.getTime()) / 86400000));
 
-    return { rows: buildRows, minDate: min, maxDate: max, totalDays: days };
-  }, [issues]);
+    return { rows: scheduled, unscheduledRows: unscheduled, minDate: min, maxDate: max, totalDays: days };
+  }, [filteredIssues]);
+
+  const pxPerDay = zoom === "day" ? 40 : zoom === "week" ? 16 : 5;
+  const chartWidth = Math.max(600, totalDays * pxPerDay);
 
   if (isLoading) {
     return (
@@ -110,7 +168,7 @@ const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
     );
   }
 
-  if (rows.length === 0) {
+  if (issues.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         No issues found for this project.
@@ -122,86 +180,155 @@ const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
     if (!row.startDate || !row.dueDate) return null;
     const start = (row.startDate.getTime() - minDate.getTime()) / 86400000;
     const duration = Math.max(1, (row.dueDate.getTime() - row.startDate.getTime()) / 86400000);
-    const left = (start / totalDays) * 100;
-    const width = (duration / totalDays) * 100;
-    return { left: `${left}%`, width: `${Math.min(width, 100 - left)}%` };
+    return { left: `${start * pxPerDay}px`, width: `${Math.max(duration * pxPerDay, 4)}px` };
   };
 
-  // Month markers
-  const months: { label: string; left: string }[] = [];
+  // Time markers
+  const markers: { label: string; left: number }[] = [];
   const cursor = new Date(minDate);
-  cursor.setDate(1);
-  cursor.setMonth(cursor.getMonth() + 1);
-  while (cursor <= maxDate) {
-    const offset = (cursor.getTime() - minDate.getTime()) / 86400000;
-    months.push({
-      label: cursor.toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
-      left: `${(offset / totalDays) * 100}%`,
-    });
+
+  if (zoom === "day") {
+    cursor.setDate(cursor.getDate() + 1);
+    while (cursor <= maxDate) {
+      const offset = (cursor.getTime() - minDate.getTime()) / 86400000;
+      markers.push({ label: cursor.toLocaleDateString("en-US", { day: "numeric", month: "short" }), left: offset * pxPerDay });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  } else if (zoom === "week") {
+    cursor.setDate(cursor.getDate() + ((8 - cursor.getDay()) % 7 || 7));
+    while (cursor <= maxDate) {
+      const offset = (cursor.getTime() - minDate.getTime()) / 86400000;
+      markers.push({ label: cursor.toLocaleDateString("en-US", { day: "numeric", month: "short" }), left: offset * pxPerDay });
+      cursor.setDate(cursor.getDate() + 7);
+    }
+  } else {
+    cursor.setDate(1);
     cursor.setMonth(cursor.getMonth() + 1);
+    while (cursor <= maxDate) {
+      const offset = (cursor.getTime() - minDate.getTime()) / 86400000;
+      markers.push({ label: cursor.toLocaleDateString("en-US", { month: "short", year: "2-digit" }), left: offset * pxPerDay });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
   }
 
+  const activeFilters = [filterType, filterStatus, filterAssignee].filter((f) => f !== "all").length;
+
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <div className="min-w-[800px]">
-        {/* Month headers */}
-        <div className="relative h-6 bg-muted border-b border-border">
-          {months.map((m, i) => (
-            <span
-              key={i}
-              className="absolute text-[10px] text-muted-foreground font-heading top-1"
-              style={{ left: m.left }}
-            >
-              {m.label}
-            </span>
+    <div className="space-y-3">
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Issue Type" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {filterOptions.types.map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="todo">To Do</SelectItem>
+            <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="done">Done</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filterAssignee} onValueChange={setFilterAssignee}>
+          <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="Assignee" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Assignees</SelectItem>
+            {filterOptions.assignees.map((a) => (<SelectItem key={a} value={a}>{a}</SelectItem>))}
+          </SelectContent>
+        </Select>
+
+        {activeFilters > 0 && (
+          <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => { setFilterType("all"); setFilterStatus("all"); setFilterAssignee("all"); }}>
+            Clear filters ({activeFilters})
+          </Button>
+        )}
+
+        <div className="ml-auto flex items-center gap-1">
+          {(["day", "week", "month"] as ZoomLevel[]).map((level) => (
+            <Button key={level} variant={zoom === level ? "default" : "outline"} size="sm" className="text-xs h-8 px-2 capitalize" onClick={() => setZoom(level)}>
+              {level}
+            </Button>
           ))}
         </div>
+      </div>
 
-        {/* Rows */}
-        {rows.map((row) => {
-          const barStyle = getBarStyle(row);
-          return (
-            <div
-              key={row.key}
-              className="flex items-center h-9 border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-            >
-              {/* Label */}
-              <div
-                className="w-[280px] min-w-[280px] px-3 flex items-center gap-1.5 text-xs truncate border-r border-border"
-                style={{ paddingLeft: `${12 + row.depth * 16}px` }}
-              >
-                <span className="text-muted-foreground">{typeIcons[row.issueType] || "•"}</span>
-                <span className="font-mono text-muted-foreground">{row.key}</span>
-                <span className="truncate text-foreground">{row.summary}</span>
-              </div>
+      {/* Chart */}
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <div style={{ minWidth: `${280 + chartWidth}px` }}>
+          {/* Time headers */}
+          <div className="relative h-6 bg-muted border-b border-border" style={{ paddingLeft: "280px" }}>
+            {markers.map((m, i) => (
+              <span key={i} className="absolute text-[10px] text-muted-foreground font-heading top-1 whitespace-nowrap" style={{ left: `${280 + m.left}px` }}>
+                {m.label}
+              </span>
+            ))}
+          </div>
 
-              {/* Bar area */}
-              <div className="flex-1 relative h-full">
-                {barStyle ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div
-                        className={`absolute top-1.5 h-5 rounded-sm ${statusColors[row.statusCategory]} opacity-85 hover:opacity-100 transition-opacity cursor-default`}
-                        style={barStyle}
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="font-heading font-semibold">{row.key}: {row.summary}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{row.statusCategory.replace("_", " ")}</p>
-                      {row.startDate && row.dueDate && (
-                        <p className="text-xs">
-                          {row.startDate.toLocaleDateString()} – {row.dueDate.toLocaleDateString()}
-                        </p>
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <div className="absolute top-3 left-2 w-2 h-2 rounded-full bg-muted-foreground/30" />
-                )}
+          {/* Scheduled rows */}
+          {rows.map((row) => {
+            const barStyle = getBarStyle(row);
+            return (
+              <div key={row.key} className="flex items-center h-9 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                <div className="w-[280px] min-w-[280px] px-3 flex items-center gap-1.5 text-xs truncate border-r border-border" style={{ paddingLeft: `${12 + row.depth * 16}px` }}>
+                  <span className="text-muted-foreground">{typeIcons[row.issueType] || "•"}</span>
+                  <span className="font-mono text-muted-foreground">{row.key}</span>
+                  <span className="truncate text-foreground">{row.summary}</span>
+                </div>
+                <div className="flex-1 relative h-full" style={{ width: `${chartWidth}px` }}>
+                  {barStyle && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className={`absolute top-1.5 h-5 rounded-sm ${statusColors[row.statusCategory]} opacity-85 hover:opacity-100 transition-opacity cursor-default`} style={barStyle} />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="font-heading font-semibold">{row.key}: {row.summary}</p>
+                        <p className="text-xs text-muted-foreground capitalize">{row.statusCategory.replace("_", " ")}</p>
+                        {row.assignee && <p className="text-xs text-muted-foreground">Assignee: {row.assignee}</p>}
+                        {row.startDate && row.dueDate && (
+                          <p className="text-xs">{row.startDate.toLocaleDateString()} – {row.dueDate.toLocaleDateString()}</p>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+
+          {/* Unscheduled section */}
+          {unscheduledRows.length > 0 && (
+            <>
+              <div className="h-8 bg-muted/60 border-t border-b border-border flex items-center px-3">
+                <span className="text-xs font-heading font-semibold text-muted-foreground">Unscheduled ({unscheduledRows.length})</span>
+              </div>
+              {unscheduledRows.map((row) => (
+                <div key={row.key} className="flex items-center h-9 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                  <div className="w-[280px] min-w-[280px] px-3 flex items-center gap-1.5 text-xs truncate border-r border-border" style={{ paddingLeft: `${12 + row.depth * 16}px` }}>
+                    <span className="text-muted-foreground">{typeIcons[row.issueType] || "•"}</span>
+                    <span className="font-mono text-muted-foreground">{row.key}</span>
+                    <span className="truncate text-foreground">{row.summary}</span>
+                  </div>
+                  <div className="flex-1 relative h-full flex items-center px-3">
+                    <span className="text-xs text-muted-foreground italic">
+                      {!row.startDate && !row.dueDate ? "No dates set" : !row.startDate ? "Missing start date" : "Missing due date"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="text-xs text-muted-foreground">
+        Showing {rows.length} scheduled + {unscheduledRows.length} unscheduled items
+        {activeFilters > 0 && ` (filtered from ${issues.length} total)`}
       </div>
     </div>
   );

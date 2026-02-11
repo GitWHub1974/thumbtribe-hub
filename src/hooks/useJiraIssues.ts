@@ -7,7 +7,7 @@ export interface JiraIssue {
   issueType: string;
   status: string;
   statusCategory: "todo" | "in_progress" | "done";
-  assignee: string | null;
+  assignee: { displayName: string; emailAddress?: string } | string | null;
   startDate: string | null;
   dueDate: string | null;
   parentKey: string | null;
@@ -22,7 +22,7 @@ export const useJiraIssues = (projectId: string | null) => {
       if (!token) throw new Error("Not authenticated");
 
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-jira-issues?projectId=${projectId}`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-jira-issues?project_id=${projectId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -31,7 +31,8 @@ export const useJiraIssues = (projectId: string | null) => {
         throw new Error(err.error || "Failed to fetch Jira issues");
       }
 
-      return res.json();
+      const data = await res.json();
+      return data.issues ?? data;
     },
     enabled: !!projectId,
     staleTime: 5 * 60 * 1000,

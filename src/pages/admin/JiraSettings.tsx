@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,22 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Save } from "lucide-react";
+import { Save, Plug, Loader2 } from "lucide-react";
+
+const DEFAULT_FORM = {
+  jira_base_url: "",
+  jira_api_email: "",
+  jira_api_token: "",
+  tempo_api_token: "",
+  start_date_field_id: "customfield_10015",
+};
 
 const JiraSettings = () => {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [selectedProject, setSelectedProject] = useState("");
+  const [form, setForm] = useState(DEFAULT_FORM);
+  const [testing, setTesting] = useState(false);
 
   const { data: projects } = useQuery({
     queryKey: ["admin-projects"],
@@ -37,21 +47,9 @@ const JiraSettings = () => {
     },
   });
 
-  const [form, setForm] = useState({
-    jira_base_url: "",
-    jira_api_email: "",
-    jira_api_token: "",
-    tempo_api_token: "",
-    start_date_field_id: "customfield_10015",
-  });
-
-  // Sync form when creds load
-  const currentCredsId = creds?.id;
-  useState(() => {});
-  // Use effect-like pattern via key
-  const formKey = `${selectedProject}-${currentCredsId}`;
-
-  const resetForm = () => {
+  // Sync form when credentials load or project changes
+  useEffect(() => {
+    if (isLoading) return;
     if (creds) {
       setForm({
         jira_base_url: creds.jira_base_url,
@@ -61,38 +59,9 @@ const JiraSettings = () => {
         start_date_field_id: creds.start_date_field_id,
       });
     } else {
-      setForm({
-        jira_base_url: "",
-        jira_api_email: "",
-        jira_api_token: "",
-        tempo_api_token: "",
-        start_date_field_id: "customfield_10015",
-      });
+      setForm(DEFAULT_FORM);
     }
-  };
-
-  // Reset form when creds change
-  const [prevKey, setPrevKey] = useState("");
-  if (formKey !== prevKey && !isLoading) {
-    setPrevKey(formKey);
-    if (creds) {
-      setForm({
-        jira_base_url: creds.jira_base_url,
-        jira_api_email: creds.jira_api_email,
-        jira_api_token: creds.jira_api_token,
-        tempo_api_token: creds.tempo_api_token,
-        start_date_field_id: creds.start_date_field_id,
-      });
-    } else {
-      setForm({
-        jira_base_url: "",
-        jira_api_email: "",
-        jira_api_token: "",
-        tempo_api_token: "",
-        start_date_field_id: "customfield_10015",
-      });
-    }
-  }
+  }, [creds, isLoading, selectedProject]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -110,6 +79,56 @@ const JiraSettings = () => {
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
+
+  const testConnection = async () => {
+    if (!form.jira_base_url || !form.jira_api_email || !form.jira_api_token) {
+      toast({ title: "Missing fields", description: "Please fill in the Jira Base URL, API Email, and API Token before testing.", variant: "destructive" });
+      return;
+    }
+
+    setTesting(true);
+    try {
+      // Test Jira connection
+      const jiraAuth = btoa(`${form.jira_api_email}:${form.jira_api_token}`);
+      const baseUrl = form.jira_base_url.replace(/\/+$/, "");
+      const jiraRes = await fetch(`${baseUrl}/rest/api/3/myself`, {
+        headers: {
+          Authorization: `Basic ${jiraAuth}`,
+          Accept: "application/json",
+        },
+      });
+
+      if (!jiraRes.ok) {
+        toast({ title: "Jira connection failed", description: `Status ${jiraRes.status}: Check your Jira URL, email, and API token.`, variant: "destructive" });
+        return;
+      }
+
+      const jiraUser = await jiraRes.json();
+
+      // Test Tempo connection (if token provided)
+      if (form.tempo_api_token) {
+        const tempoRes = await fetch("https://api.tempo.io/4/accounts", {
+          headers: {
+            Authorization: `Bearer ${form.tempo_api_token}`,
+            Accept: "application/json",
+          },
+        });
+
+        if (!tempoRes.ok) {
+          toast({ title: "Jira OK, Tempo failed", description: `Jira connected as ${jiraUser.displayName}, but Tempo returned status ${tempoRes.status}. Check your Tempo API token.`, variant: "destructive" });
+          return;
+        }
+
+        toast({ title: "Connection successful", description: `Jira: ${jiraUser.displayName} | Tempo: Connected` });
+      } else {
+        toast({ title: "Jira connection successful", description: `Connected as ${jiraUser.displayName}. No Tempo token provided to test.` });
+      }
+    } catch (err: any) {
+      toast({ title: "Connection error", description: err.message || "Could not reach the server.", variant: "destructive" });
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <div className="p-8">
@@ -185,10 +204,16 @@ const JiraSettings = () => {
                 />
                 <p className="text-xs text-muted-foreground">The Jira custom field ID for the start date of issues.</p>
               </div>
-              <Button type="submit" disabled={saveMutation.isPending}>
-                <Save className="w-4 h-4 mr-2" />
-                {saveMutation.isPending ? "Saving..." : "Save Credentials"}
-              </Button>
+              <div className="flex gap-3">
+                <Button type="submit" disabled={saveMutation.isPending}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {saveMutation.isPending ? "Saving..." : "Save Credentials"}
+                </Button>
+                <Button type="button" variant="outline" onClick={testConnection} disabled={testing}>
+                  {testing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plug className="w-4 h-4 mr-2" />}
+                  {testing ? "Testing..." : "Test Connection"}
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>

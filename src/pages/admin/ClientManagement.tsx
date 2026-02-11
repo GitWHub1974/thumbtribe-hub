@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ const ClientManagement = () => {
   const [roleOpen, setRoleOpen] = useState(false);
   const [roleUserId, setRoleUserId] = useState("");
   const [roleValue, setRoleValue] = useState<"admin" | "client">("client");
+  const [unassignTarget, setUnassignTarget] = useState<{ id: string; clientName: string; projectName: string } | null>(null);
 
   const { data: profiles, isLoading } = useQuery({
     queryKey: ["admin-profiles"],
@@ -91,10 +93,20 @@ const ClientManagement = () => {
 
   const setRoleMutation = useMutation({
     mutationFn: async () => {
-      // Upsert: delete existing then insert
-      await supabase.from("user_roles").delete().eq("user_id", roleUserId);
-      const { error } = await supabase.from("user_roles").insert({ user_id: roleUserId, role: roleValue });
-      if (error) throw error;
+      // Upsert role — use onConflict to avoid race condition where delete succeeds but insert fails
+      const { error } = await supabase
+        .from("user_roles")
+        .upsert(
+          { user_id: roleUserId, role: roleValue },
+          { onConflict: "user_id,role" }
+        );
+      if (error) {
+        // If upsert fails due to different role existing, delete then insert
+        const { error: delError } = await supabase.from("user_roles").delete().eq("user_id", roleUserId);
+        if (delError) throw delError;
+        const { error: insError } = await supabase.from("user_roles").insert({ user_id: roleUserId, role: roleValue });
+        if (insError) throw insError;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-all-roles"] });
@@ -230,7 +242,11 @@ const ClientManagement = () => {
                       <TableCell>{a.profiles?.full_name || a.profiles?.email || "—"}</TableCell>
                       <TableCell>{a.projects?.name || "—"}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => unassignMutation.mutate(a.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => setUnassignTarget({
+                          id: a.id,
+                          clientName: a.profiles?.full_name || a.profiles?.email || "Unknown",
+                          projectName: a.projects?.name || "Unknown",
+                        })}>
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
                       </TableCell>
@@ -266,6 +282,30 @@ const ClientManagement = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Unassign Confirmation Dialog */}
+      <AlertDialog open={!!unassignTarget} onOpenChange={(open) => !open && setUnassignTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Assignment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove <strong>{unassignTarget?.clientName}</strong> from <strong>{unassignTarget?.projectName}</strong>? The client will lose access to this project's dashboard.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (unassignTarget) unassignMutation.mutate(unassignTarget.id);
+                setUnassignTarget(null);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

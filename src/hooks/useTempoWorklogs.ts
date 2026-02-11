@@ -22,7 +22,7 @@ export const useTempoWorklogs = (
       const token = sessionData.session?.access_token;
       if (!token) throw new Error("Not authenticated");
 
-      const params = new URLSearchParams({ projectId: projectId! });
+      const params = new URLSearchParams({ project_id: projectId! });
       if (from) params.set("from", from);
       if (to) params.set("to", to);
 
@@ -36,7 +36,8 @@ export const useTempoWorklogs = (
         throw new Error(err.error || "Failed to fetch worklogs");
       }
 
-      return res.json();
+      const data = await res.json();
+      return data.worklogs ?? data;
     },
     enabled: !!projectId,
     staleTime: 5 * 60 * 1000,
