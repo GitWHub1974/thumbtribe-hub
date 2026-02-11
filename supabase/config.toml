@@ -1,10 +1,10 @@
 project_id = "bqtpxmnsycxatmyjjtcx"
 
 [functions.fetch-jira-issues]
-verify_jwt = true
+verify_jwt = false
 
 [functions.fetch-tempo-worklogs]
-verify_jwt = true
+verify_jwt = false
 
 [functions.test-jira-connection]
 verify_jwt = false
