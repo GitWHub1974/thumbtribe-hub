@@ -88,40 +88,28 @@ const JiraSettings = () => {
 
     setTesting(true);
     try {
-      // Test Jira connection
-      const jiraAuth = btoa(`${form.jira_api_email}:${form.jira_api_token}`);
-      const baseUrl = form.jira_base_url.replace(/\/+$/, "");
-      const jiraRes = await fetch(`${baseUrl}/rest/api/3/myself`, {
-        headers: {
-          Authorization: `Basic ${jiraAuth}`,
-          Accept: "application/json",
+      const { data, error } = await supabase.functions.invoke("test-jira-connection", {
+        body: {
+          jira_base_url: form.jira_base_url,
+          jira_api_email: form.jira_api_email,
+          jira_api_token: form.jira_api_token,
+          tempo_api_token: form.tempo_api_token,
         },
       });
 
-      if (!jiraRes.ok) {
-        toast({ title: "Jira connection failed", description: `Status ${jiraRes.status}: Check your Jira URL, email, and API token.`, variant: "destructive" });
+      if (error) throw error;
+
+      if (data.error) {
+        toast({ title: "Connection failed", description: data.error, variant: "destructive" });
         return;
       }
 
-      const jiraUser = await jiraRes.json();
-
-      // Test Tempo connection (if token provided)
-      if (form.tempo_api_token) {
-        const tempoRes = await fetch("https://api.tempo.io/4/accounts", {
-          headers: {
-            Authorization: `Bearer ${form.tempo_api_token}`,
-            Accept: "application/json",
-          },
-        });
-
-        if (!tempoRes.ok) {
-          toast({ title: "Jira OK, Tempo failed", description: `Jira connected as ${jiraUser.displayName}, but Tempo returned status ${tempoRes.status}. Check your Tempo API token.`, variant: "destructive" });
-          return;
-        }
-
-        toast({ title: "Connection successful", description: `Jira: ${jiraUser.displayName} | Tempo: Connected` });
-      } else {
-        toast({ title: "Jira connection successful", description: `Connected as ${jiraUser.displayName}. No Tempo token provided to test.` });
+      if (data.jira_ok && data.tempo_ok) {
+        toast({ title: "Connection successful", description: `Jira: ${data.jira_user} | Tempo: Connected` });
+      } else if (data.jira_ok && form.tempo_api_token && !data.tempo_ok) {
+        toast({ title: "Jira OK, Tempo failed", description: `Jira connected as ${data.jira_user}, but Tempo returned status ${data.tempo_status}.`, variant: "destructive" });
+      } else if (data.jira_ok) {
+        toast({ title: "Jira connection successful", description: `Connected as ${data.jira_user}. No Tempo token provided.` });
       }
     } catch (err: any) {
       toast({ title: "Connection error", description: err.message || "Could not reach the server.", variant: "destructive" });
