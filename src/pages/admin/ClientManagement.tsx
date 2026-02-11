@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Trash2, Link } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
@@ -26,6 +27,13 @@ const ClientManagement = () => {
   const [roleUserId, setRoleUserId] = useState("");
   const [roleValue, setRoleValue] = useState<"admin" | "client">("client");
   const [unassignTarget, setUnassignTarget] = useState<{ id: string; clientName: string; projectName: string } | null>(null);
+
+  // Invite user state
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteFullName, setInviteFullName] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "client">("client");
+  const [inviteProjectIds, setInviteProjectIds] = useState<string[]>([]);
 
   const { data: profiles, isLoading } = useQuery({
     queryKey: ["admin-profiles"],
@@ -116,13 +124,110 @@ const ClientManagement = () => {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const inviteMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: {
+          email: inviteEmail,
+          full_name: inviteFullName,
+          role: inviteRole,
+          project_ids: inviteProjectIds,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-profiles"] });
+      qc.invalidateQueries({ queryKey: ["admin-all-roles"] });
+      qc.invalidateQueries({ queryKey: ["admin-assignments"] });
+      toast({ title: "Invitation sent", description: `An invite email has been sent to ${inviteEmail}.` });
+      setInviteOpen(false);
+      setInviteEmail("");
+      setInviteFullName("");
+      setInviteRole("client");
+      setInviteProjectIds([]);
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const getRoleForUser = (userId: string) => roles?.find((r) => r.user_id === userId)?.role;
+
+  const toggleProjectId = (pid: string) => {
+    setInviteProjectIds((prev) =>
+      prev.includes(pid) ? prev.filter((id) => id !== pid) : [...prev, pid]
+    );
+  };
 
   return (
     <div className="p-8 space-y-8">
       <div>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-heading font-bold text-foreground">Users & Assignments</h1>
+          <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="w-4 h-4 mr-2" /> Invite User
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Invite New User</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Email *</Label>
+                  <Input
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    type="email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Full Name</Label>
+                  <Input
+                    value={inviteFullName}
+                    onChange={(e) => setInviteFullName(e.target.value)}
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as "admin" | "client")}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="client">Client</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {inviteRole === "client" && projects && projects.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Assign to Projects</Label>
+                    <div className="space-y-2 max-h-40 overflow-y-auto border rounded-md p-3">
+                      {projects.map((p) => (
+                        <label key={p.id} className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={inviteProjectIds.includes(p.id)}
+                            onCheckedChange={() => toggleProjectId(p.id)}
+                          />
+                          <span className="text-sm">{p.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <Button
+                  className="w-full"
+                  disabled={!inviteEmail || inviteMutation.isPending}
+                  onClick={() => inviteMutation.mutate()}
+                >
+                  {inviteMutation.isPending ? "Sending invite..." : "Send Invitation"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Users table */}
