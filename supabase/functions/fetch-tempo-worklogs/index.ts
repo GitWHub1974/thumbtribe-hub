@@ -157,19 +157,12 @@ Deno.serve(async (req) => {
 
     // Transform
     const worklogs = allWorklogs.map((w: any) => ({
-      id: w.tempoWorklogId,
-      issueKey: w.issue?.key || null,
-      issueSummary: w.issue?.summary || null,
-      date: w.startDate,
-      timeSpentSeconds: w.timeSpentSeconds,
-      timeSpentHours: Math.round((w.timeSpentSeconds / 3600) * 100) / 100,
-      description: w.description || "",
-      author: w.author
-        ? {
-            displayName: w.author.displayName,
-            accountId: w.author.accountId,
-          }
-        : null,
+      issueKey: w.issue?.key || "UNKNOWN",
+      issueSummary: w.issue?.summary || "",
+      author: w.author?.displayName || "Unknown",
+      timeSpentSeconds: w.timeSpentSeconds || 0,
+      startDate: w.startDate || "",
+      description: w.description || null,
     }));
 
     return new Response(JSON.stringify({ worklogs }), {
