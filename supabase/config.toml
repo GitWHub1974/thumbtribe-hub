@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.fetch-tempo-worklogs]
 verify_jwt = true
+
+[functions.test-jira-connection]
+verify_jwt = true
