@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Trash2, Link, Eye } from "lucide-react";
+import { UserPlus, Trash2, Link, Eye, MailPlus } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Profile = Tables<"profiles">;
@@ -171,6 +171,20 @@ const ClientManagement = () => {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const resendInviteMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const { data, error } = await supabase.functions.invoke("resend-invite", {
+        body: { email },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      toast({ title: "Invite resent", description: "A new invitation email has been sent." });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
   const getRoleForUser = (userId: string) => roles?.find((r) => r.user_id === userId)?.role;
 
   const toggleProjectId = (pid: string) => {
@@ -291,6 +305,15 @@ const ClientManagement = () => {
                           }}
                         >
                           Set Role
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => resendInviteMutation.mutate(p.email)}
+                          disabled={resendInviteMutation.isPending}
+                          title="Resend invite email"
+                        >
+                          <MailPlus className="w-4 h-4 text-muted-foreground" />
                         </Button>
                         <Button
                           variant="ghost"
