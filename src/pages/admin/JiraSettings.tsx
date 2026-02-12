@@ -7,14 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Plug, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Save, Plug, Loader2, Plus } from "lucide-react";
 
 const DEFAULT_FORM = {
   jira_base_url: "",
   jira_api_email: "",
   jira_api_token: "",
   tempo_api_token: "",
-  start_date_field_id: "customfield_10015",
 };
 
 const JiraSettings = () => {
@@ -23,6 +23,8 @@ const JiraSettings = () => {
   const [selectedProject, setSelectedProject] = useState("");
   const [form, setForm] = useState(DEFAULT_FORM);
   const [testing, setTesting] = useState(false);
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [newProjectForm, setNewProjectForm] = useState({ name: "", jira_project_key: "", description: "" });
 
   const { data: projects } = useQuery({
     queryKey: ["admin-projects"],
@@ -56,7 +58,6 @@ const JiraSettings = () => {
         jira_api_email: creds.jira_api_email,
         jira_api_token: creds.jira_api_token,
         tempo_api_token: creds.tempo_api_token,
-        start_date_field_id: creds.start_date_field_id,
       });
     } else {
       setForm(DEFAULT_FORM);
@@ -76,6 +77,20 @@ const JiraSettings = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["jira-creds", selectedProject] });
       toast({ title: "Credentials saved" });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("projects").insert(newProjectForm);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-projects"] });
+      toast({ title: "Project created" });
+      setNewProjectOpen(false);
+      setNewProjectForm({ name: "", jira_project_key: "", description: "" });
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -122,16 +137,43 @@ const JiraSettings = () => {
     <div className="p-8">
       <h1 className="text-2xl font-heading font-bold text-foreground mb-6">Jira & Tempo Settings</h1>
 
-      <div className="mb-6 max-w-xs">
-        <Label>Select Project</Label>
-        <Select value={selectedProject} onValueChange={setSelectedProject}>
-          <SelectTrigger><SelectValue placeholder="Choose a project" /></SelectTrigger>
-          <SelectContent>
-            {projects?.map((p) => (
-              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="mb-6 flex items-end gap-3">
+        <div className="max-w-xs flex-1">
+          <Label>Select Project</Label>
+          <Select value={selectedProject} onValueChange={setSelectedProject}>
+            <SelectTrigger><SelectValue placeholder="Choose a project" /></SelectTrigger>
+            <SelectContent>
+              {projects?.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Dialog open={newProjectOpen} onOpenChange={setNewProjectOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline"><Plus className="w-4 h-4 mr-2" />New Project</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>New Project</DialogTitle></DialogHeader>
+            <form onSubmit={(e) => { e.preventDefault(); createProjectMutation.mutate(); }} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input value={newProjectForm.name} onChange={(e) => setNewProjectForm({ ...newProjectForm, name: e.target.value })} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Jira Project Key</Label>
+                <Input value={newProjectForm.jira_project_key} onChange={(e) => setNewProjectForm({ ...newProjectForm, jira_project_key: e.target.value })} placeholder="e.g. PROJ" />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input value={newProjectForm.description} onChange={(e) => setNewProjectForm({ ...newProjectForm, description: e.target.value })} />
+              </div>
+              <Button type="submit" className="w-full" disabled={createProjectMutation.isPending}>
+                {createProjectMutation.isPending ? "Creating..." : "Create Project"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {selectedProject && (
@@ -182,15 +224,6 @@ const JiraSettings = () => {
                   onChange={(e) => setForm({ ...form, tempo_api_token: e.target.value })}
                   placeholder="••••••••"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Start Date Custom Field ID</Label>
-                <Input
-                  value={form.start_date_field_id}
-                  onChange={(e) => setForm({ ...form, start_date_field_id: e.target.value })}
-                  placeholder="customfield_10015"
-                />
-                <p className="text-xs text-muted-foreground">The Jira custom field ID for the start date of issues.</p>
               </div>
               <div className="flex gap-3">
                 <Button type="submit" disabled={saveMutation.isPending}>
