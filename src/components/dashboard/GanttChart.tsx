@@ -51,10 +51,25 @@ const GanttChart = ({ issues, isLoading, projectName }: GanttChartProps) => {
     if (!chartRef.current) return;
     setIsExporting(true);
     try {
-      // Temporarily expand the scrollable area so html2canvas captures everything
+      // Temporarily expand the scrollable area and remove text truncation
       const scrollContainer = chartRef.current.querySelector<HTMLElement>(".flex-1.overflow-x-auto");
       const prevOverflow = scrollContainer?.style.overflow;
       if (scrollContainer) scrollContainer.style.overflow = "visible";
+
+      // Expand left column and remove truncation so full text is visible
+      const leftColumn = chartRef.current.querySelector<HTMLElement>(".min-w-\\[280px\\]");
+      const prevLeftWidth = leftColumn?.style.width;
+      const prevLeftMinWidth = leftColumn?.style.minWidth;
+      if (leftColumn) {
+        leftColumn.style.width = "auto";
+        leftColumn.style.minWidth = "auto";
+      }
+      const truncatedEls = chartRef.current.querySelectorAll<HTMLElement>(".truncate");
+      truncatedEls.forEach((el) => {
+        el.style.overflow = "visible";
+        el.style.textOverflow = "clip";
+        el.style.whiteSpace = "nowrap";
+      });
 
       const canvas = await html2canvas(chartRef.current, {
         scale: 2,
@@ -65,8 +80,17 @@ const GanttChart = ({ issues, isLoading, projectName }: GanttChartProps) => {
         windowHeight: chartRef.current.scrollHeight,
       });
 
-      // Restore overflow
+      // Restore styles
       if (scrollContainer && prevOverflow !== undefined) scrollContainer.style.overflow = prevOverflow;
+      if (leftColumn) {
+        leftColumn.style.width = prevLeftWidth || "";
+        leftColumn.style.minWidth = prevLeftMinWidth || "";
+      }
+      truncatedEls.forEach((el) => {
+        el.style.overflow = "";
+        el.style.textOverflow = "";
+        el.style.whiteSpace = "";
+      });
 
       const imgData = canvas.toDataURL("image/png");
       const imgWidth = canvas.width;
