@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { JiraIssue } from "@/hooks/useJiraIssues";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface GanttChartProps {
   issues: JiraIssue[];
@@ -40,6 +43,39 @@ const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterAssignee, setFilterAssignee] = useState<string>("all");
   const [zoom, setZoom] = useState<ZoomLevel>("week");
+  const [isExporting, setIsExporting] = useState(false);
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPdf = async () => {
+    if (!chartRef.current) return;
+    setIsExporting(true);
+    try {
+      const canvas = await html2canvas(chartRef.current, {
+        scale: 2,
+        useCORS: true,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: chartRef.current.scrollWidth,
+        windowHeight: chartRef.current.scrollHeight,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const pdfWidth = imgWidth * 0.75;
+      const pdfHeight = imgHeight * 0.75;
+      const pdf = new jsPDF({
+        orientation: pdfWidth > pdfHeight ? "landscape" : "portrait",
+        unit: "pt",
+        format: [pdfWidth, pdfHeight],
+      });
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save("gantt-chart.pdf");
+    } catch (e) {
+      console.error("PDF export failed:", e);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Extract unique values for filter dropdowns
   const filterOptions = useMemo(() => {
@@ -251,6 +287,10 @@ const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
         )}
 
         <div className="ml-auto flex items-center gap-1">
+          <Button variant="outline" size="sm" className="text-xs h-8 px-2 gap-1" onClick={handleDownloadPdf} disabled={isExporting}>
+            <Download className="w-3.5 h-3.5" />
+            {isExporting ? "Exporting…" : "PDF"}
+          </Button>
           {(["day", "week", "month"] as ZoomLevel[]).map((level) => (
             <Button key={level} variant={zoom === level ? "default" : "outline"} size="sm" className="text-xs h-8 px-2 capitalize" onClick={() => setZoom(level)}>
               {level}
@@ -260,7 +300,7 @@ const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
       </div>
 
       {/* Chart */}
-      <div className="rounded-lg border border-border">
+      <div ref={chartRef} className="rounded-lg border border-border">
         <div className="flex">
           {/* Frozen left column */}
           <div className="w-[280px] min-w-[280px] flex-shrink-0 border-r border-border bg-background z-10">
