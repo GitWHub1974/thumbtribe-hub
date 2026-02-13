@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import logoWhite from "@/assets/logo_white.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,8 +100,8 @@ const Auth = () => {
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-4">
-              <span className="text-primary-foreground font-heading font-bold text-xl">T</span>
+            <div className="mx-auto w-20 h-7 rounded-lg bg-primary flex items-center justify-center mb-4 overflow-hidden">
+              <img src={logoWhite} alt="Thumbtribe Logo" className="w-16 h-5 object-contain" />
             </div>
             <CardTitle className="font-heading text-2xl">Set Your Password</CardTitle>
             <CardDescription>Create a password for your account to continue</CardDescription>
@@ -145,8 +146,8 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-4">
-            <span className="text-primary-foreground font-heading font-bold text-xl">T</span>
+          <div className="mx-auto w-20 h-7 rounded-lg bg-primary flex items-center justify-center mb-4 overflow-hidden">
+            <img src={logoWhite} alt="Thumbtribe Logo" className="w-16 h-5 object-contain" />
           </div>
           <CardTitle className="font-heading text-2xl">Welcome back</CardTitle>
           <CardDescription>Sign in to your Thumbtribe account</CardDescription>
