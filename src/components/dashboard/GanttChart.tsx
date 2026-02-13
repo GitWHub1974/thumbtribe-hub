@@ -51,45 +51,58 @@ const GanttChart = ({ issues, isLoading, projectName }: GanttChartProps) => {
     if (!chartRef.current) return;
     setIsExporting(true);
     try {
-      // Temporarily expand the scrollable area and remove text truncation
-      const scrollContainer = chartRef.current.querySelector<HTMLElement>(".flex-1.overflow-x-auto");
-      const prevOverflow = scrollContainer?.style.overflow;
+      const el = chartRef.current;
+
+      // 1. Expand scrollable area
+      const scrollContainer = el.querySelector<HTMLElement>("[data-pdf-scroll]");
       if (scrollContainer) scrollContainer.style.overflow = "visible";
 
-      // Expand left column and remove truncation so full text is visible
-      const leftColumn = chartRef.current.querySelector<HTMLElement>(".min-w-\\[280px\\]");
-      const prevLeftWidth = leftColumn?.style.width;
-      const prevLeftMinWidth = leftColumn?.style.minWidth;
-      if (leftColumn) {
-        leftColumn.style.width = "auto";
-        leftColumn.style.minWidth = "auto";
+      // 2. Expand left column (remove fixed width)
+      const leftCol = el.querySelector<HTMLElement>("[data-pdf-left]");
+      if (leftCol) {
+        leftCol.style.width = "auto";
+        leftCol.style.minWidth = "auto";
+        leftCol.style.maxWidth = "none";
+        leftCol.style.flexShrink = "0";
       }
-      const truncatedEls = chartRef.current.querySelectorAll<HTMLElement>(".truncate");
-      truncatedEls.forEach((el) => {
-        el.style.overflow = "visible";
-        el.style.textOverflow = "clip";
-        el.style.whiteSpace = "nowrap";
+
+      // 3. Remove ALL truncation — both the row containers and inner spans
+      const truncatedEls = el.querySelectorAll<HTMLElement>(".truncate");
+      const savedClasses: string[] = [];
+      truncatedEls.forEach((node, i) => {
+        savedClasses[i] = node.className;
+        node.classList.remove("truncate");
+        node.style.overflow = "visible";
+        node.style.textOverflow = "unset";
+        node.style.whiteSpace = "nowrap";
       });
 
-      const canvas = await html2canvas(chartRef.current, {
+      // Force layout recalc
+      void el.offsetHeight;
+
+      const canvas = await html2canvas(el, {
         scale: 2,
         useCORS: true,
+        backgroundColor: "#ffffff",
         scrollX: 0,
         scrollY: 0,
-        windowWidth: chartRef.current.scrollWidth,
-        windowHeight: chartRef.current.scrollHeight,
+        windowWidth: el.scrollWidth,
+        windowHeight: el.scrollHeight,
       });
 
-      // Restore styles
-      if (scrollContainer && prevOverflow !== undefined) scrollContainer.style.overflow = prevOverflow;
-      if (leftColumn) {
-        leftColumn.style.width = prevLeftWidth || "";
-        leftColumn.style.minWidth = prevLeftMinWidth || "";
+      // Restore everything
+      if (scrollContainer) scrollContainer.style.overflow = "";
+      if (leftCol) {
+        leftCol.style.width = "";
+        leftCol.style.minWidth = "";
+        leftCol.style.maxWidth = "";
+        leftCol.style.flexShrink = "";
       }
-      truncatedEls.forEach((el) => {
-        el.style.overflow = "";
-        el.style.textOverflow = "";
-        el.style.whiteSpace = "";
+      truncatedEls.forEach((node, i) => {
+        node.className = savedClasses[i];
+        node.style.overflow = "";
+        node.style.textOverflow = "";
+        node.style.whiteSpace = "";
       });
 
       const imgData = canvas.toDataURL("image/png");
@@ -365,7 +378,7 @@ const GanttChart = ({ issues, isLoading, projectName }: GanttChartProps) => {
       <div ref={chartRef} className="rounded-lg border border-border">
         <div className="flex">
           {/* Frozen left column */}
-          <div className="w-[280px] min-w-[280px] flex-shrink-0 border-r border-border bg-background z-10">
+          <div data-pdf-left className="w-[280px] min-w-[280px] flex-shrink-0 border-r border-border bg-background z-10">
             {/* Header spacer */}
             <div className="h-6 bg-muted border-b border-border" />
             {/* Scheduled rows */}
@@ -394,7 +407,7 @@ const GanttChart = ({ issues, isLoading, projectName }: GanttChartProps) => {
           </div>
 
           {/* Scrollable Gantt area */}
-          <div className="flex-1 overflow-x-auto">
+          <div data-pdf-scroll className="flex-1 overflow-x-auto">
             <div style={{ minWidth: `${chartWidth}px` }}>
               {/* Time headers */}
               <div className="relative h-6 bg-muted border-b border-border">
