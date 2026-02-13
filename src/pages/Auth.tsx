@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import logoWhite from "@/assets/logo_white.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,22 +9,22 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
-// Check hash synchronously to avoid race conditions with session
-const hasAuthToken = () => {
-  const hash = window.location.hash;
-  return hash && (hash.includes("type=invite") || hash.includes("type=recovery") || hash.includes("type=magiclink"));
+// Check URL for set_password query param (added by invite/resend edge functions)
+const needsPasswordSetup = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("set_password") === "true";
 };
 
 const Auth = () => {
   const { session, role, loading } = useAuth();
   const { toast } = useToast();
-  const location = useLocation();
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [isSettingPassword, setIsSettingPassword] = useState(hasAuthToken);
-  const [processingToken, setProcessingToken] = useState(hasAuthToken);
+  const [isSettingPassword, setIsSettingPassword] = useState(needsPasswordSetup);
+  const [processingToken, setProcessingToken] = useState(needsPasswordSetup);
 
   // When user arrives via auth token and gets a session, show set-password form
   useEffect(() => {

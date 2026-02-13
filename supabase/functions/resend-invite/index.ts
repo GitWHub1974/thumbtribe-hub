@@ -58,7 +58,7 @@ serve(async (req) => {
     );
 
     const siteUrl = Deno.env.get("SITE_URL") || req.headers.get("origin") || "";
-    const redirectTo = siteUrl ? `${siteUrl}/auth` : undefined;
+    const redirectTo = siteUrl ? `${siteUrl}/auth?set_password=true` : undefined;
 
      // Generate a magic link for the re-invitation
      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
