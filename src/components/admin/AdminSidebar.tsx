@@ -24,8 +24,8 @@ const AdminSidebar = () => {
       )}
     >
       <div className="flex items-center gap-3 px-5 h-16 border-b border-sidebar-border">
-        <div className="w-10 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0 overflow-hidden">
-          <img src={logoWhite} alt="Logo" className="w-8 h-5 object-contain" />
+        <div className="w-20 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0 overflow-hidden">
+          <img src={logoWhite} alt="Logo" className="w-16 h-5 object-contain" />
         </div>
         {!collapsed && (
           <span className="font-heading font-bold text-lg text-sidebar-accent-foreground tracking-tight">

@@ -33,8 +33,8 @@ const ClientDashboard = () => {
     <div className="min-h-screen bg-background">
       <header className="h-16 border-b border-border bg-card flex items-center justify-between px-8">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-7 rounded-lg bg-primary flex items-center justify-center overflow-hidden">
-            <img src={logoWhite} alt="Logo" className="w-8 h-5 object-contain" />
+          <div className="w-20 h-7 rounded-lg bg-primary flex items-center justify-center overflow-hidden">
+            <img src={logoWhite} alt="Logo" className="w-16 h-5 object-contain" />
           </div>
           <h1 className="text-xl font-heading font-bold text-foreground">Client Dashboard</h1>
         </div>
