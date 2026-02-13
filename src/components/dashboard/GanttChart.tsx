@@ -10,6 +10,7 @@ import jsPDF from "jspdf";
 interface GanttChartProps {
   issues: JiraIssue[];
   isLoading?: boolean;
+  projectName?: string;
 }
 
 interface GanttRow {
@@ -38,7 +39,7 @@ const typeIcons: Record<string, string> = {
   "Sub-task": "·",
 };
 
-const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
+const GanttChart = ({ issues, isLoading, projectName }: GanttChartProps) => {
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterAssignee, setFilterAssignee] = useState<string>("all");
@@ -50,6 +51,11 @@ const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
     if (!chartRef.current) return;
     setIsExporting(true);
     try {
+      // Temporarily expand the scrollable area so html2canvas captures everything
+      const scrollContainer = chartRef.current.querySelector<HTMLElement>(".flex-1.overflow-x-auto");
+      const prevOverflow = scrollContainer?.style.overflow;
+      if (scrollContainer) scrollContainer.style.overflow = "visible";
+
       const canvas = await html2canvas(chartRef.current, {
         scale: 2,
         useCORS: true,
@@ -58,18 +64,50 @@ const GanttChart = ({ issues, isLoading }: GanttChartProps) => {
         windowWidth: chartRef.current.scrollWidth,
         windowHeight: chartRef.current.scrollHeight,
       });
+
+      // Restore overflow
+      if (scrollContainer && prevOverflow !== undefined) scrollContainer.style.overflow = prevOverflow;
+
       const imgData = canvas.toDataURL("image/png");
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
-      const pdfWidth = imgWidth * 0.75;
-      const pdfHeight = imgHeight * 0.75;
+
+      // Always landscape, fit content on one page with margins
+      const margin = 40;
+      const titleHeight = 60;
+      const pdfPageWidth = 1190; // ~A3 landscape in pt
+      const contentWidth = pdfPageWidth - margin * 2;
+      const scale = contentWidth / imgWidth;
+      const scaledHeight = imgHeight * scale;
+      const pdfPageHeight = scaledHeight + margin * 2 + titleHeight;
+
       const pdf = new jsPDF({
-        orientation: pdfWidth > pdfHeight ? "landscape" : "portrait",
+        orientation: "landscape",
         unit: "pt",
-        format: [pdfWidth, pdfHeight],
+        format: [pdfPageWidth, pdfPageHeight],
       });
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save("gantt-chart.pdf");
+
+      // Title: Project Name
+      const title = projectName || "Project Plan";
+      pdf.setFontSize(18);
+      pdf.setFont("helvetica", "bold");
+      pdf.text(title, margin, margin + 16);
+
+      // Date/time in GMT+2
+      const now = new Date();
+      const gmt2 = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+      const dateStr = gmt2.toLocaleString("en-GB", {
+        year: "numeric", month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit",
+        timeZone: "UTC",
+      }) + " GMT+2";
+      pdf.setFontSize(10);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(dateStr, pdfPageWidth - margin, margin + 16, { align: "right" });
+
+      // Chart image
+      pdf.addImage(imgData, "PNG", margin, margin + titleHeight, contentWidth, scaledHeight);
+      pdf.save(`${title.replace(/\s+/g, "_")}_Gantt_Chart.pdf`);
     } catch (e) {
       console.error("PDF export failed:", e);
     } finally {

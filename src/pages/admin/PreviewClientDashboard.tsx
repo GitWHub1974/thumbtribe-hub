@@ -66,7 +66,7 @@ const PreviewClientDashboard = () => {
             </TabsList>
 
             <TabsContent value="gantt">
-              <GanttChart issues={issues} isLoading={issuesLoading} />
+              <GanttChart issues={issues} isLoading={issuesLoading} projectName={project?.name} />
             </TabsContent>
 
             <TabsContent value="time">
