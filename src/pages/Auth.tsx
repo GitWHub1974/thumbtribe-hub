@@ -23,7 +23,7 @@ const Auth = () => {
   // Detect invite/recovery tokens in the URL hash and handle them
   useEffect(() => {
     const hash = window.location.hash;
-    if (hash && (hash.includes("type=invite") || hash.includes("type=recovery"))) {
+    if (hash && (hash.includes("type=invite") || hash.includes("type=recovery") || hash.includes("type=magiclink"))) {
       setProcessingToken(true);
       // Supabase client auto-processes the hash tokens via onAuthStateChange.
       // We just need to wait for the session to appear, then show set-password.
