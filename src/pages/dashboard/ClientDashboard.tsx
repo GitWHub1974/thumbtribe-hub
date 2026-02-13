@@ -6,6 +6,7 @@ import { useTempoWorklogs } from "@/hooks/useTempoWorklogs";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogOut } from "lucide-react";
+import logoWhite from "@/assets/logo_white.png";
 import ProjectSelector from "@/components/dashboard/ProjectSelector";
 import GanttChart from "@/components/dashboard/GanttChart";
 import TimeTrackingTable from "@/components/dashboard/TimeTrackingTable";
@@ -32,8 +33,8 @@ const ClientDashboard = () => {
     <div className="min-h-screen bg-background">
       <header className="h-16 border-b border-border bg-card flex items-center justify-between px-8">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-heading font-bold text-sm">T</span>
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center overflow-hidden">
+            <img src={logoWhite} alt="Logo" className="w-6 h-6 object-contain" />
           </div>
           <h1 className="text-xl font-heading font-bold text-foreground">Client Dashboard</h1>
         </div>
