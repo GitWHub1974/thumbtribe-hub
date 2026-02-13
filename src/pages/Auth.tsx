@@ -100,8 +100,8 @@ const Auth = () => {
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto w-20 h-7 rounded-lg bg-primary flex items-center justify-center mb-4 overflow-hidden">
-              <img src={logoWhite} alt="Thumbtribe Logo" className="w-16 h-5 object-contain" />
+            <div className="mx-auto w-40 h-14 rounded-lg bg-primary flex items-center justify-center mb-4 overflow-hidden">
+              <img src={logoWhite} alt="Thumbtribe Logo" className="w-32 h-10 object-contain" />
             </div>
             <CardTitle className="font-heading text-2xl">Set Your Password</CardTitle>
             <CardDescription>Create a password for your account to continue</CardDescription>
@@ -146,8 +146,8 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto w-20 h-7 rounded-lg bg-primary flex items-center justify-center mb-4 overflow-hidden">
-            <img src={logoWhite} alt="Thumbtribe Logo" className="w-16 h-5 object-contain" />
+          <div className="mx-auto w-40 h-14 rounded-lg bg-primary flex items-center justify-center mb-4 overflow-hidden">
+            <img src={logoWhite} alt="Thumbtribe Logo" className="w-32 h-10 object-contain" />
           </div>
           <CardTitle className="font-heading text-2xl">Welcome back</CardTitle>
           <CardDescription>Sign in to your Thumbtribe account</CardDescription>
