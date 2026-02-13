@@ -94,10 +94,13 @@ serve(async (req) => {
         body: JSON.stringify({
           from: "Thumbtribe <info@client.thumbtribe.biz>",
           to: email,
-          template_id: "thumbtribe-dashboard-invite",
-          variables: {
-            name: "there",
-            invite_link: magicLink,
+          subject: "Your Thumbtribe Invitation",
+          template: {
+            id: "thumbtribe-dashboard-invite",
+            variables: {
+              name: "there",
+              invite_link: magicLink,
+            },
           },
         }),
       });
