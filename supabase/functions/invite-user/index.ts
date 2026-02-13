@@ -79,7 +79,8 @@ serve(async (req) => {
       });
     }
 
-    // Create the user manually since we're generating our own link
+    // Try to create the user; if they already exist, look up their ID instead
+    let newUserId: string;
     const { data: userData, error: userError } = await adminClient.auth.admin.createUser({
       email,
       user_metadata: { full_name: full_name || "" },
@@ -87,12 +88,19 @@ serve(async (req) => {
     });
 
     if (userError) {
-      return new Response(JSON.stringify({ error: userError.message }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // If user already exists, find them by email
+      const { data: listData, error: listError } = await adminClient.auth.admin.listUsers();
+      const existingUser = listData?.users?.find((u) => u.email === email);
+      if (!existingUser) {
+        return new Response(JSON.stringify({ error: userError.message }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      newUserId = existingUser.id;
+    } else {
+      newUserId = userData.user.id;
     }
 
-    const newUserId = userData.user.id;
     const magicLink = linkData.properties?.action_link || "";
 
     // Send invitation email via Resend
