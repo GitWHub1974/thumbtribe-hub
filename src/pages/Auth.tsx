@@ -9,6 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
+// Check hash synchronously to avoid race conditions with session
+const hasAuthToken = () => {
+  const hash = window.location.hash;
+  return hash && (hash.includes("type=invite") || hash.includes("type=recovery") || hash.includes("type=magiclink"));
+};
+
 const Auth = () => {
   const { session, role, loading } = useAuth();
   const { toast } = useToast();
@@ -17,20 +23,10 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [isSettingPassword, setIsSettingPassword] = useState(false);
-  const [processingToken, setProcessingToken] = useState(false);
+  const [isSettingPassword, setIsSettingPassword] = useState(hasAuthToken);
+  const [processingToken, setProcessingToken] = useState(hasAuthToken);
 
-  // Detect invite/recovery tokens in the URL hash and handle them
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash && (hash.includes("type=invite") || hash.includes("type=recovery") || hash.includes("type=magiclink"))) {
-      setProcessingToken(true);
-      // Supabase client auto-processes the hash tokens via onAuthStateChange.
-      // We just need to wait for the session to appear, then show set-password.
-    }
-  }, []);
-
-  // When user arrives via invite token and gets a session, show set-password form
+  // When user arrives via auth token and gets a session, show set-password form
   useEffect(() => {
     if (processingToken && session) {
       setIsSettingPassword(true);
