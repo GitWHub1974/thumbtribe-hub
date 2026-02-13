@@ -140,6 +140,15 @@ serve(async (req) => {
       newUserId = userData.user.id;
     }
 
+    // Ensure profile exists (trigger may have failed)
+    const { error: profileError } = await adminClient
+      .from("profiles")
+      .upsert(
+        { id: newUserId, email: sanitizedEmail, full_name: sanitizedName },
+        { onConflict: "id" }
+      );
+    if (profileError) console.error("Profile upsert error:", profileError.message);
+
     const magicLink = linkData.properties?.action_link || "";
 
     // Send invitation email via Resend
