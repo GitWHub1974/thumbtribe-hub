@@ -72,7 +72,7 @@ const ClientDashboard = () => {
               </TabsList>
 
               <TabsContent value="gantt">
-                <GanttChart issues={issues} isLoading={issuesLoading} />
+                <GanttChart issues={issues} isLoading={issuesLoading} projectName={projects.find(p => p.id === activeId)?.name} />
               </TabsContent>
 
               <TabsContent value="time">
